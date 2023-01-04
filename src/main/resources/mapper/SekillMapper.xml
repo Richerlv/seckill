@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.seckill.dao.SeckillMapper">
+
+
+    <select id="getSeckillById" resultType="com.example.seckill.pojo.Seckill">
+        SELECT
+               *
+        FROM
+             seckill
+        Where
+              seckillId = #{seckillId};
+    </select>
+
+
+    <select id="getAll" resultType="com.example.seckill.pojo.Seckill">
+        SELECT
+               *
+        FROM
+             seckill
+        LIMIT
+            #{offset}
+        offset
+            #{start}
+        ORDER BY
+            createTime DESC ;
+    </select>
+
+<!--    要求：库存 > 0, 在规定秒杀时间内-->
+    <update id="decrCount">
+        update
+            seckill
+        SET
+            number = number - 1
+        WHERE
+              seckillId = #{seckillId}
+          AND
+              #{killTime} >= start
+          AND
+              #{killTime} &lt;= `end`
+          AND number > 0;
+    </update>
+
+
+<!--    /**-->
+<!--    * 减库存-->
+<!--    */-->
+<!--    int decrCount(int sekillId);-->
+
+</mapper>
