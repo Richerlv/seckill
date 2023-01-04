@@ -40,7 +40,7 @@ public class seckillController {
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     public String list(Model model) {
         List<Seckill> seckillList = seckillService.getAll();
-        model.addAttribute("list" + seckillList);
+        model.addAttribute("seckillList", seckillList);
         return "list";
     }
 
@@ -59,7 +59,7 @@ public class seckillController {
         if(seckillDetail == null) {
             return "forward:/seckill/list";
         }
-        model.addAttribute("detail", seckillDetail);
+        model.addAttribute("seckill", seckillDetail);
         return "detail";
     }
 

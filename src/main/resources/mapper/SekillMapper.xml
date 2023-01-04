@@ -20,12 +20,12 @@
                *
         FROM
              seckill
+        ORDER BY
+            createTime DESC
         LIMIT
             #{offset}
         offset
-            #{start}
-        ORDER BY
-            createTime DESC ;
+            #{start};
     </select>
 
 <!--    要求：库存 > 0, 在规定秒杀时间内-->

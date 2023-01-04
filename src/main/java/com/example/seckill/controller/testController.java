@@ -32,10 +32,8 @@ public class testController {
     private SeckillService seckillService;
 
     @RequestMapping(value = "/test")
-    @ResponseBody
-    public String test(@CookieValue("md5") String md5) {
-        System.out.println(md5);
-        return "ok";
+    public String test() {
+        return "test";
     }
 
     @RequestMapping(value = "/test2")

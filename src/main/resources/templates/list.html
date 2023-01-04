@@ -1,10 +1,56 @@
+<!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+
+<!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap-theme.min.css" integrity="sha384-6pzBo3FDv/PJ8r2KRkGHifhEocL+1X2rVCTTkUfGk7/0pbek5mMa1upzvWbrUbOZ" crossorigin="anonymous">
+
+<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd" crossorigin="anonymous"></script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>秒杀商品列表</title>
 </head>
-<body>
+<!--页面显示部分-->
+<div class="container">
+  <div class="panel panel-default">
+    <div class="panel-heading text-center">
+      <h2>秒杀列表</h2>
+
+    </div>
+    <div class="panel-body">
+      <table class="table table-hover">
+        <thead>
+        <tr>
+          <th>名称</th>
+          <th>库存</th>
+          <th>开始时间</th>
+          <th>结束时间</th>
+          <th>创建时间</th>
+          <th>详情</th>
+        </tr>
+        </thead>
+        <tbody>
+          <tr th:each="sk : ${seckillList}">
+            <td th:text="${sk.name}"></td>
+            <td th:text="${sk.number}"></td>
+            <td th:text="${sk.start}">
+<!--              <fmt:formatDate value="${sk.startTime}" pattern="yyyy-MM-dd HH:mm:ss"/>-->
+            </td>
+            <td th:text="${sk.end}"></td>
+            <td th:text="${sk.createTime}"></td>
+            <td>
+<!--              <button>link</button>-->
+              <a class="btn btn-info" th:href="@{/seckill/{seckillId}/detail(seckillId=${sk.seckillId}) }" target="_blank">link</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 
 </body>
 </html>
