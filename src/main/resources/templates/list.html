@@ -35,13 +35,10 @@
           <tr th:each="sk : ${seckillList}">
             <td th:text="${sk.name}"></td>
             <td th:text="${sk.number}"></td>
-            <td th:text="${sk.start}">
-<!--              <fmt:formatDate value="${sk.startTime}" pattern="yyyy-MM-dd HH:mm:ss"/>-->
-            </td>
-            <td th:text="${sk.end}"></td>
-            <td th:text="${sk.createTime}"></td>
+              <td th:text="${#dates.format(sk.start,'yyyy-MM-dd HH:mm:ss')}"></td>
+              <td th:text="${#dates.format(sk.end,'yyyy-MM-dd HH:mm:ss')}"></td>
+              <td th:text="${#dates.format(sk.createTime,'yyyy-MM-dd HH:mm:ss')}"></td>
             <td>
-<!--              <button>link</button>-->
               <a class="btn btn-info" th:href="@{/seckill/{seckillId}/detail(seckillId=${sk.seckillId}) }" target="_blank">link</a>
             </td>
           </tr>

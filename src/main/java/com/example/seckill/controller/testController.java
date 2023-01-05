@@ -1,12 +1,12 @@
 package com.example.seckill.controller;
 
+import com.example.seckill.service.RedisService;
 import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dao.SuccessKilledMapper;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.exception.RepeatKillException;
 import com.example.seckill.exception.SeckillCloseException;
-import com.example.seckill.exception.SeckillException;
 import com.example.seckill.service.SeckillService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -23,6 +23,9 @@ import java.util.Date;
 
 @Controller
 public class testController {
+
+    @Autowired
+    private RedisService redisDao;
 
     @Autowired
     private SeckillMapper seckillDao;
@@ -80,5 +83,13 @@ public class testController {
         } catch (Exception e) {
             return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
         }
+    }
+
+
+    @RequestMapping(value = "/test9")
+    public String test8(Model model) {
+        redisDao.putSeckill(1);
+        System.out.println(redisDao.getById(1));
+        return "test";
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -87,20 +88,20 @@ public class seckillController {
      * 先判断有没有电话->没有即未注册
      * 异常处理：
      */
-    @RequestMapping(value = "/{seckillId}/{md5}/execute", method = RequestMethod.POST,
+    @RequestMapping(value = "/{seckillId}/{md5}/execution", method = RequestMethod.POST,
             produces = {"application/json;charset=UTF-8"})
     @ResponseBody
     public Result<SeckillExecution> execute(@PathVariable("seckillId") Integer seckillId,
-                                            @CookieValue(value = "userPhone", required = false) String userPhone,
+                                            @CookieValue(value = "killPhone", required = false) String killPhone,
                                             @PathVariable("md5") String md5) {
 
-        if(userPhone == null) {
+        if(killPhone == null) {
             return new Result<>(false, "未注册");
         }
 
         Result<SeckillExecution> result;
         try {
-            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, userPhone, md5);
+            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
         } catch (RepeatKillException e1) {
@@ -116,5 +117,11 @@ public class seckillController {
         }
     }
 
+    @RequestMapping(value = "/time/now", method = RequestMethod.GET)
+    @ResponseBody
+    public Result<Long> time() {
+        Date now = new Date();
+        return new Result<Long>(true, now.getTime());
+    }
 
 }
