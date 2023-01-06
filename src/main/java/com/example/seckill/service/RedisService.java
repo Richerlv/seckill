@@ -29,10 +29,9 @@ public class RedisService {
         return seckill;
     }
 
-    public void putSeckill(int seckillId) {
-        Seckill seckill = seckillMapper.getSeckillById(seckillId);
+    public void putSeckill(Seckill seckill) {
         if(seckill != null) {
-            String key = "seckill:" + seckillId;
+            String key = "seckill:" + seckill.getSeckillId();
             redisTemplate.opsForValue().set(key, seckill);
         } else {
             System.out.println("not found");

@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author: Richerlv
@@ -33,4 +34,11 @@ public interface SeckillMapper {
      * 减库存
      */
     int decrCount(int seckillId, Date killTime);
+
+
+    /**
+     * 执行存储过程
+     * @param params
+     */
+    void killByProcedure(Map<String, Object> params);
 }

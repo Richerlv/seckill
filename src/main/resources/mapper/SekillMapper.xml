@@ -43,10 +43,14 @@
           AND number > 0;
     </update>
 
-
-<!--    /**-->
-<!--    * 减库存-->
-<!--    */-->
-<!--    int decrCount(int sekillId);-->
+    <!--调用存储过程-->
+    <select id="killByProcedure" statementType="CALLABLE">
+        call execute_seckill(
+            #{seckillId, jdbcType=INTEGER,mode=IN},
+            #{userPhone, jdbcType=VARCHAR,mode=IN},
+            #{nowTime, jdbcType=TIMESTAMP,mode=IN},
+            #{result, jdbcType=INTEGER,mode=OUT}
+            )
+    </select>
 
 </mapper>

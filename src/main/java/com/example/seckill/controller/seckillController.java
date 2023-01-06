@@ -101,6 +101,7 @@ public class seckillController {
 
         Result<SeckillExecution> result;
         try {
+//            SeckillExecution seckillExecution = seckillService.executeProcedure(seckillId, killPhone, md5);
             SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
@@ -117,6 +118,12 @@ public class seckillController {
         }
     }
 
+    /**
+     * 获取系统当前时间
+     *
+     * 保证前端时间与服务器时间一致
+     * 直接获取前段时间会与服务器时间有偏差
+     */
     @RequestMapping(value = "/time/now", method = RequestMethod.GET)
     @ResponseBody
     public Result<Long> time() {

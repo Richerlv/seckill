@@ -8,6 +8,7 @@ import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.exception.RepeatKillException;
 import com.example.seckill.exception.SeckillCloseException;
 import com.example.seckill.service.SeckillService;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -88,7 +89,7 @@ public class testController {
 
     @RequestMapping(value = "/test9")
     public String test8(Model model) {
-        redisDao.putSeckill(1);
+        redisDao.putSeckill(seckillDao.getSeckillById(1));
         System.out.println(redisDao.getById(1));
         return "test";
     }

@@ -10,6 +10,7 @@ import com.example.seckill.exception.SeckillCloseException;
 import com.example.seckill.exception.SeckillException;
 import com.example.seckill.pojo.Seckill;
 import com.example.seckill.pojo.SuccessKilled;
+import com.example.seckill.service.RedisService;
 import com.example.seckill.service.SeckillService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author: Richerlv
@@ -37,6 +40,9 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     private SuccessKilledMapper successKilledMapper;
+
+    @Autowired
+    private RedisService redisService;
 
     //md5盐值字符串，用于混淆md5
     private final String salt = "A46~4`23fjka@$#T05sdfh;asd4d6sg^*&!";
@@ -64,15 +70,26 @@ public class SeckillServiceImpl implements SeckillService {
      * 已经开始：返回true，md5，seckillId
      * 已结束：返回false，当前时间，秒杀开始、结束时间，seckillId
      *
+     * 优化：redis缓存热点数据
+     *
      * @param seckillId
      * @return
      */
     @Override
     public Exposer exportSeckillUrl(int seckillId) {
+
         //获取当前系统时间
         Date nowTime = new Date();
-        //获取秒杀商品
-        Seckill seckill = seckillMapper.getSeckillById(seckillId);
+        //获取秒杀商品(先查Redis，再查MySQL)
+        Seckill seckill = redisService.getById(seckillId);
+        if(seckill == null) {
+            //没查到，去查MySQL
+            seckill = seckillMapper.getSeckillById(seckillId);
+            //存到redis
+            if(seckill != null) {
+                redisService.putSeckill(seckill);
+            }
+        }
 
         //没有获取到商品
         if(seckill == null) {
@@ -155,30 +172,36 @@ public class SeckillServiceImpl implements SeckillService {
             throw new SeckillException("Seckill system inner error: " + e.getMessage());
         }
 
-//        try {
-//            //减库存
-//            int dcreRes = seckillMapper.decrCount(seckillId, new Date());
-//            if(dcreRes <= 0) {
-//                //库存 < 0, 秒杀结束
-//                throw new SeckillCloseException("Seckill closed");
-//            } else {
-//                //插入订单
-//                int insertRes = successKilledMapper.insertSuccessKilled(seckillId, userPhone, new Date());
-//                if(insertRes <= 0) {
-//                    //插入失败，重复抢购
-//                    throw new RepeatKillException("Repeat seckill");
-//                } else {
-//                    //秒杀成功
-//                    SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
-//                    return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
-//                }
-//            }
-//        } catch (RepeatKillException e1) {
-//            throw e1;
-//        } catch (SeckillCloseException e2) {
-//            throw e2;
-//        } catch (Exception e) {
-//            throw new SeckillException("Seckill inner Error: " + e.getMessage());
-//        }
+    }
+
+    @Override
+    public SeckillExecution executeProcedure(int seckillId, String userPhone, String md5) {
+        //验证md5
+        String md5Verify = getMD5(seckillId);
+        if (md5 == null || !md5Verify.equals(md5)) {
+            //验证失败
+            throw new SeckillException("Seckill Data Rewrite");
+        }
+        Date nowTime = new Date();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("seckillId", seckillId);
+        params.put("userPhone", userPhone);
+        params.put("nowTime", nowTime);
+        params.put("result", null);
+        try {
+            //执行存储过程
+            seckillMapper.killByProcedure(params);
+            int result = (int) params.get("result");
+            if (result == 1) {
+                SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
+                return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+            } else {
+                return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
+        }
     }
 }

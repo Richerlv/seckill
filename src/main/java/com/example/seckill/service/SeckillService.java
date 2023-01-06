@@ -44,12 +44,10 @@ public interface SeckillService {
     SeckillExecution executeSeckill(int seckillId, String userPhone, String md5)
             throws RepeatKillException, SeckillCloseException, SeckillException;
 
-    /**
-     * 获取系统当前时间
-     *
-     * 保证前端时间与服务器时间一致
-     * 直接获取前段时间会与服务器时间有偏差
-     */
 
+    /**
+     * 使用存储过程执行秒杀
+     */
+    SeckillExecution executeProcedure(int seckillId, String userPhone, String md5);
 
 }
