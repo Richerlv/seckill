@@ -21,6 +21,7 @@ public class SuccessKilled {
 
     private int seckillId;
     private String userPhone;
+    private String email;
     private short status;
     private Date createTime;
 

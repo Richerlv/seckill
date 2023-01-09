@@ -25,4 +25,14 @@ public interface SuccessKilledMapper {
      * 根据seckillId, userPhone查询明细
      */
     SuccessKilled getSuccessKilledById(int seckillId, String userPhone);
+
+    /**
+     * 支付
+     */
+    int pay(SuccessKilled successKilled);
+
+    /**
+     * “失效”订单
+     */
+    int inValid(SuccessKilled successKilled);
 }

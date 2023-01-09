@@ -28,4 +28,31 @@
               sk.seckillId = #{seckillId} AND userPhone = #{userPhone};
     </select>
 
+<!--    支付-->
+    <update id="pay" parameterType="com.example.seckill.pojo.SuccessKilled">
+        UPDATE
+            successkilled
+        SET
+            status = 1
+        WHERE
+              seckillId = #{seckillId}
+          AND
+              userPhone = #{userPhone}
+          AND
+              status = 0;
+    </update>
+
+    <!--    "失效"订单-->
+    <update id="inValid" parameterType="com.example.seckill.pojo.SuccessKilled">
+        UPDATE
+            successkilled
+        SET
+            status = -1
+        WHERE
+            seckillId = #{seckillId}
+          AND
+            userPhone = #{userPhone}
+          AND
+              status = 0;
+    </update>
 </mapper>

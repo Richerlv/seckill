@@ -10,6 +10,7 @@ import com.example.seckill.exception.SeckillCloseException;
 import com.example.seckill.exception.SeckillException;
 import com.example.seckill.pojo.Seckill;
 import com.example.seckill.pojo.SuccessKilled;
+import com.example.seckill.service.RabbitmqSenderService;
 import com.example.seckill.service.RedisService;
 import com.example.seckill.service.SeckillService;
 import org.slf4j.Logger;
@@ -43,6 +44,9 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private RabbitmqSenderService rabbitmqSenderService;
 
     //md5盐值字符串，用于混淆md5
     private final String salt = "A46~4`23fjka@$#T05sdfh;asd4d6sg^*&!";
@@ -195,6 +199,11 @@ public class SeckillServiceImpl implements SeckillService {
             int result = (int) params.get("result");
             if (result == 1) {
                 SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
+
+                //秒杀成功：发邮件
+                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+                //秒杀成功：支付
+                rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
                 return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
             } else {
                 return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
