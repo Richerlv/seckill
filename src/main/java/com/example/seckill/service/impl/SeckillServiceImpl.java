@@ -13,9 +13,11 @@ import com.example.seckill.pojo.SuccessKilled;
 import com.example.seckill.service.RabbitmqSenderService;
 import com.example.seckill.service.RedisService;
 import com.example.seckill.service.SeckillService;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
@@ -47,6 +49,9 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     private RabbitmqSenderService rabbitmqSenderService;
+
+    @Resource
+    private RedisTemplate redisTemplate;
 
     //md5盐值字符串，用于混淆md5
     private final String salt = "A46~4`23fjka@$#T05sdfh;asd4d6sg^*&!";
@@ -178,6 +183,15 @@ public class SeckillServiceImpl implements SeckillService {
 
     }
 
+    /**
+     * 存储过程
+     * QPS:300
+     *
+     * @param seckillId
+     * @param userPhone
+     * @param md5
+     * @return
+     */
     @Override
     public SeckillExecution executeProcedure(int seckillId, String userPhone, String md5) {
         //验证md5
@@ -200,13 +214,90 @@ public class SeckillServiceImpl implements SeckillService {
             if (result == 1) {
                 SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
 
-                //秒杀成功：发邮件
-                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
-                //秒杀成功：支付
-                rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
+//                //秒杀成功：发邮件
+//                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+//                //秒杀成功：支付
+//                rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
                 return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
             } else {
                 return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
+        }
+    }
+
+
+    /**
+     * 使用redis优化秒杀逻辑
+     *
+     * 10000 个线程， 5000个会被redis查库存筛掉
+     *
+     * @param seckillId
+     * @param userPhone
+     * @param md5
+     * @return
+     */
+    @Override
+    public SeckillExecution executeV3(int seckillId, String userPhone, String md5) {
+
+        //验证md5
+        String md5Verify = getMD5(seckillId);
+        if(md5 == null || !md5Verify.equals(md5)) {
+            //验证失败
+            throw new SeckillException("Seckill Data Rewrite");
+        }
+        Date nowTime = new Date();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("seckillId", seckillId);
+        params.put("userPhone", userPhone);
+        params.put("nowTime", nowTime);
+        params.put("result", null);
+        try {
+            //查商品
+            Seckill seckill = redisService.getById(seckillId);
+            //商品不为空
+            if(seckill != null) {
+                //TODO:判断是否重复抢购
+                String orderKey = seckillId + "" + userPhone;
+                if(redisService.get(orderKey) == null) {
+                    //TODO:判断库存 > 0?
+                    String seckillKey = seckill.getSeckillId() + "" + "stock:";
+                    if((Integer)redisTemplate.opsForValue().get(seckillKey) > 0) {
+                        //TODO:减库存
+                        redisTemplate.opsForValue().decrement(seckillKey);
+                        //TODO: redis中下订单 ps:这里的value不重要
+                        Boolean res = redisTemplate.opsForValue().setIfAbsent(orderKey, orderKey);
+                        if(res) {
+                            //TODO:访问数据库
+                            //执行存储过程
+                            seckillMapper.killByProcedure(params);
+                            int result = (int) params.get("result");
+                            if (result == 1) {
+                                SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
+                                return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+                            } else {
+                                System.out.println(111);
+                                return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+                            }
+                        } else {
+                            System.out.println(222);
+                            redisTemplate.opsForValue().increment(seckillKey);
+                            return new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+                        }
+                    } else {
+                        System.out.println(333);
+                        return new SeckillExecution(seckillId, SeckillStateEnum.END);
+                    }
+                } else {
+                    System.out.println(444);
+                    return new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+                }
+            } else {
+                System.out.println(555);
+                return new SeckillExecution(seckillId, SeckillStateEnum.END);
             }
         } catch (Exception e) {
             e.printStackTrace();

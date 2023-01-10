@@ -7,7 +7,9 @@ import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.exception.RepeatKillException;
 import com.example.seckill.exception.SeckillCloseException;
 import com.example.seckill.pojo.Seckill;
+import com.example.seckill.service.RedisService;
 import com.example.seckill.service.SeckillService;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,8 @@ public class seckillController {
 
     @Autowired
     private SeckillService seckillService;
+    @Autowired
+    private RedisService redisService;
 
     /**
      * 获取商品列表
@@ -84,9 +88,11 @@ public class seckillController {
 
     /**
      * 秒杀
+     * 1000 * 10
      *
-     * 先判断有没有电话->没有即未注册
-     * 异常处理：
+     * 优化sql前QPS： 226
+     * 使用存储过程后的QPS：374
+     * 使用redis后的QPS：589
      */
     @RequestMapping(value = "/{seckillId}/{md5}/execution", method = RequestMethod.POST,
             produces = {"application/json;charset=UTF-8"})
@@ -94,7 +100,7 @@ public class seckillController {
     public Result<SeckillExecution> execute(@PathVariable("seckillId") Integer seckillId,
                                             @CookieValue(value = "killPhone", required = false) String killPhone,
                                             @PathVariable("md5") String md5) {
-
+        System.out.println("收到------------------");
         if(killPhone == null) {
             return new Result<>(false, "未注册");
         }
@@ -102,10 +108,13 @@ public class seckillController {
         Result<SeckillExecution> result;
         try {
             //优化后:调用存储过程
-            SeckillExecution seckillExecution = seckillService.executeProcedure(seckillId, killPhone, md5);
+//            SeckillExecution seckillExecution = seckillService.executeProcedure(seckillId, killPhone, md5);
 
             //优化前:
 //            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
+
+            //redis优化
+            SeckillExecution seckillExecution = seckillService.executeV3(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
         } catch (RepeatKillException e1) {
@@ -134,4 +143,15 @@ public class seckillController {
         return new Result<Long>(true, now.getTime());
     }
 
+    /**
+     * 系统初始化时：将商品信息加载到redis中
+     */
+    @PostConstruct
+    public void preheat() {
+        List<Seckill> seckillList = seckillService.getAll();
+        for(int i = 0; i < seckillList.size(); i ++) {
+            redisService.putSeckill(seckillList.get(i));
+            redisService.set(seckillList.get(i).getSeckillId() + "" + "stock:", seckillList.get(i).getNumber());
+        }
+    }
 }

@@ -38,4 +38,12 @@ public class RedisService {
         }
     }
 
+    public Object get(Object key) {
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    public void set(String key, Object value) {
+        redisTemplate.opsForValue().set(key, value);
+    }
+
 }
