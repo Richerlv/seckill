@@ -1,7 +1,10 @@
 package com.example.seckill.service;
 
+import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dao.SuccessKilledMapper;
 import com.example.seckill.dto.MailDto;
+import com.example.seckill.dto.SeckillExecution;
+import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -11,6 +14,10 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author: Richerlv
@@ -28,6 +35,9 @@ public class RabbitmqReceiverService {
 
     @Autowired
     private SuccessKilledMapper successKilledMapper;
+
+    @Autowired
+    private SeckillMapper seckillMapper;
 
     /**
      * 秒杀成功异步发送邮件-接收消息
@@ -71,6 +81,38 @@ public class RabbitmqReceiverService {
 //            logger.error("秒杀成功进入支付-接收消息-发生异常：{}", e.fillInStackTrace());
 //        }
 //    }
+
+    /**
+     * redis预减库存成功异步下单
+     */
+    @RabbitListener(queues = "order_queue", containerFactory = "multiListenerContainer")
+    public SeckillExecution consumeOrderMsg(HashMap<String, Object> info) {
+        logger.info("redis预减库存成功异步下单-接收消息:{}",info);
+        int seckillId = (int) info.get("seckillId");
+        String userPhone = (String) info.get("userPhone");
+        try {
+            //TODO:访问数据库
+            Date nowTime = new Date();
+            Map<String, Object> params = new HashMap<>();
+            params.put("seckillId", seckillId);
+            params.put("userPhone", userPhone);
+            params.put("nowTime", nowTime);
+            params.put("result", null);
+
+            seckillMapper.killByProcedure(params);
+            int result = (int) params.get("result");
+            if (result == 1) {
+                SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
+                return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+            } else {
+                return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+            }
+        } catch (Exception e) {
+            logger.error("redis预减库存成功异步下单-接收消息-发生异常：",e.getMessage());
+            return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
+        }
+    }
+
 
     /**
      * 秒杀成功进入支付-监听者

@@ -47,6 +47,9 @@ public class RabbitmqConfig {
     private final static String MAIL_QUEUE = "sendMailQueue";
     private final static String MAIL_EXCHANGE = "sendMailExchange";
     private final static String MAIL_ROUTINGKEY = "sendMailRoutingKey";
+    private final static String ORDER_QUEUE = "order_queue";
+    private final static String ORDER_EXCHANGE = "order_exchange";
+    private final static String ORDER_ROUTINGKEY = "order_routingkey";
 
     /**
      * 单一消费者
@@ -80,7 +83,9 @@ public class RabbitmqConfig {
         return factory;
     }
 
-    //下单后异步发送邮件的消息模型
+    /**
+     * 下单后异步发送邮件的消息模型
+     */
     @Bean
     public Queue sendMailQueue() {
         return new Queue(MAIL_QUEUE, true);
@@ -139,6 +144,24 @@ public class RabbitmqConfig {
     @Bean
     public Binding noPayBinding() {
         return BindingBuilder.bind(noPayQueue()).to(noPayExchange()).with(NOPAY_DEAD_ROUTINGKEY);
+    }
+
+    /**
+     * redis预减库存成功异步下单消息模型
+     */
+    @Bean
+    public Queue orderQueue() {
+        return new Queue(ORDER_QUEUE, true);
+    }
+
+    @Bean
+    public TopicExchange orderExchange() {
+        return new TopicExchange(ORDER_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Binding orderBinding() {
+        return BindingBuilder.bind(orderQueue()).to(orderExchange()).with(ORDER_ROUTINGKEY);
     }
 
 }

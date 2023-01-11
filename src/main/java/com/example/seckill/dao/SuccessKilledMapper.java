@@ -22,7 +22,7 @@ public interface SuccessKilledMapper {
 
 
     /**
-     * 根据seckillId, userPhone查询明细
+     * 根据seckillId, userPhone查询明细 --可以用来获取秒杀结果
      */
     SuccessKilled getSuccessKilledById(int seckillId, String userPhone);
 
@@ -35,4 +35,5 @@ public interface SuccessKilledMapper {
      * “失效”订单
      */
     int inValid(SuccessKilled successKilled);
+
 }

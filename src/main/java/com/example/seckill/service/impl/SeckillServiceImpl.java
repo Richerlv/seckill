@@ -17,15 +17,16 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author: Richerlv
@@ -230,7 +231,7 @@ public class SeckillServiceImpl implements SeckillService {
 
 
     /**
-     * 使用redis优化秒杀逻辑
+     * 使用redis优化秒杀逻辑  - redis的超卖没解决
      *
      * 10000 个线程， 5000个会被redis查库存筛掉
      *
@@ -297,6 +298,128 @@ public class SeckillServiceImpl implements SeckillService {
                 }
             } else {
                 System.out.println(555);
+                return new SeckillExecution(seckillId, SeckillStateEnum.END);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
+        }
+    }
+
+    /**
+     * redis + lua解决超卖：还有bug
+     *
+     * @param seckillId
+     * @param userPhone
+     * @param md5
+     * @return
+     */
+    @Override
+    public SeckillExecution executeV4(int seckillId, String userPhone, String md5) {
+
+        //验证md5
+        String md5Verify = getMD5(seckillId);
+        if(md5 == null || !md5Verify.equals(md5)) {
+            //验证失败
+            throw new SeckillException("Seckill Data Rewrite");
+        }
+        Date nowTime = new Date();
+        Map<String, Object> params = new HashMap<>();
+        params.put("seckillId", seckillId);
+        params.put("userPhone", userPhone);
+        params.put("nowTime", nowTime);
+        params.put("result", null);
+        try {
+
+            String seckillKey = seckillId + "" + "stock:";
+            String orderKey = seckillId + "" + userPhone;
+
+            // 执行 lua 脚本
+            DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+            // 指定 lua 脚本
+            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/seckill.lua")));
+            // 指定返回类型
+            redisScript.setResultType(Long.class);
+            List<Object> list = new ArrayList<>();
+            list.add(orderKey);
+            list.add(seckillKey);
+            // 参数一：redisScript，参数二：key列表，参数三：arg（可多个）
+            Long res = (Long)redisTemplate.execute(redisScript, list, orderKey);
+            System.out.println("res = " + res);
+            if(res == 1) {
+                //TODO:访问数据库
+                //执行存储过程
+                seckillMapper.killByProcedure(params);
+                int result = (int) params.get("result");
+                if (result == 1) {
+                    SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
+                    return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+                } else {
+                    System.out.println(111);
+                    return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+                }
+            } else {
+                System.out.println(222);
+                return new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
+        }
+
+    }
+
+    /**
+     * redis预减库存 + rabbitmq异步下单
+     *
+     * @param seckillId
+     * @param userPhone
+     * @param md5
+     * @return
+     */
+    @Override
+    public SeckillExecution executeV5(int seckillId, String userPhone, String md5) {
+
+        //验证md5
+        String md5Verify = getMD5(seckillId);
+        if(md5 == null || !md5Verify.equals(md5)) {
+            //验证失败
+            throw new SeckillException("Seckill Data Rewrite");
+        }
+
+        try {
+            //查商品
+            Seckill seckill = redisService.getById(seckillId);
+            //商品不为空
+            if(seckill != null) {
+                //TODO:判断是否重复抢购
+                String orderKey = seckillId + "" + userPhone;
+                if(redisService.get(orderKey) == null) {
+                    //TODO:判断库存 > 0?
+                    String seckillKey = seckill.getSeckillId() + "" + "stock:";
+                    if((Integer)redisTemplate.opsForValue().get(seckillKey) > 0) {
+                        //TODO:减库存
+                        redisTemplate.opsForValue().decrement(seckillKey);
+                        //TODO: redis中下订单 ps:这里的value不重要
+                        Boolean res = redisTemplate.opsForValue().setIfAbsent(orderKey, orderKey);
+                        if(res) {
+                            //TODO:异步下单
+                            return rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
+                        } else {
+                            System.out.println("impl 222");
+                            redisTemplate.opsForValue().increment(seckillKey);
+                            return new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+                        }
+                    } else {
+                        System.out.println("impl 333");
+                        return new SeckillExecution(seckillId, SeckillStateEnum.END);
+                    }
+                } else {
+                    System.out.println("impl  444");
+                    return new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+                }
+            } else {
+                System.out.println("impl 555");
                 return new SeckillExecution(seckillId, SeckillStateEnum.END);
             }
         } catch (Exception e) {

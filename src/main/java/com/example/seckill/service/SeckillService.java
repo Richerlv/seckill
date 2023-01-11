@@ -54,4 +54,9 @@ public interface SeckillService {
      * 秒杀-redis优化
      */
     SeckillExecution executeV3(int seckillId, String userPhone, String md5);
+
+    SeckillExecution executeV4(int seckillId, String userPhone, String md5);
+
+    SeckillExecution executeV5(int seckillId, String userPhone, String md5);
+
 }

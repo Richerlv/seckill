@@ -100,7 +100,6 @@ public class seckillController {
     public Result<SeckillExecution> execute(@PathVariable("seckillId") Integer seckillId,
                                             @CookieValue(value = "killPhone", required = false) String killPhone,
                                             @PathVariable("md5") String md5) {
-        System.out.println("收到------------------");
         if(killPhone == null) {
             return new Result<>(false, "未注册");
         }
@@ -114,7 +113,7 @@ public class seckillController {
 //            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
 
             //redis优化
-            SeckillExecution seckillExecution = seckillService.executeV3(seckillId, killPhone, md5);
+            SeckillExecution seckillExecution = seckillService.executeV5(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
         } catch (RepeatKillException e1) {

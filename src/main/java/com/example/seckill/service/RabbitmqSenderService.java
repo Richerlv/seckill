@@ -1,6 +1,8 @@
 package com.example.seckill.service;
 
 import com.example.seckill.dao.SuccessKilledMapper;
+import com.example.seckill.dto.SeckillExecution;
+import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -15,6 +17,9 @@ import org.springframework.amqp.support.converter.AbstractJavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author: Richerlv
@@ -95,6 +100,42 @@ public class RabbitmqSenderService {
             }
         } catch (Exception e) {
             logger.error("秒杀成功进入支付通知消息-发生异常：{}", e.fillInStackTrace());
+        }
+    }
+
+    /**
+     * redis预减库存成功异步下单-通知消息
+     */
+    public SeckillExecution killSuccessToOrder(Integer seckillId, String userPhone) {
+        logger.info("redis预减库存成功异步下单-通知消息:{}", seckillId);
+        try {
+            //参数校验
+            if(seckillId != null && userPhone != null) {
+                //通知消费者下单
+                Map<String, Object> info = new HashMap<>();
+                info.put("seckillId", seckillId);
+                info.put("userPhone", userPhone);
+
+                rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
+                rabbitTemplate.setExchange("order_exchange");
+                rabbitTemplate.setRoutingKey("order_routingkey");
+
+                SeckillExecution seckillExecution = (SeckillExecution) rabbitTemplate.convertSendAndReceive(info, new MessagePostProcessor() {
+                    @Override
+                    public Message postProcessMessage(Message message) throws AmqpException {
+                        MessageProperties messageProperties = new MessageProperties();
+                        messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                        messageProperties.setHeader(AbstractJavaTypeMapper.DEFAULT_CONTENT_CLASSID_FIELD_NAME, HashMap.class);
+                        return message;
+                    }
+                });
+                return seckillExecution;
+            } else {
+                return new SeckillExecution(seckillId, SeckillStateEnum.DATA_REWRITE);
+            }
+        } catch (Exception e) {
+            logger.error("redis预减库存成功异步下单-出现异常:{}", e.fillInStackTrace());
+            return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
         }
     }
 
