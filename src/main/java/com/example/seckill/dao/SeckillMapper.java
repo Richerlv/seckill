@@ -35,6 +35,10 @@ public interface SeckillMapper {
      */
     int decrCount(int seckillId, Date killTime);
 
+    /**
+     * 加库存
+     */
+    int incrCount(int seckillId);
 
     /**
      * 执行存储过程

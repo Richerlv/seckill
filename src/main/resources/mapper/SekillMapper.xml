@@ -43,6 +43,16 @@
           AND number > 0;
     </update>
 
+    <!--    加库存-->
+    <update id="incrCount">
+        update
+            seckill
+        SET
+            number = number + 1
+        WHERE
+            seckillId = #{seckillId};
+    </update>
+
     <!--调用存储过程-->
     <select id="killByProcedure" statementType="CALLABLE">
         call execute_seckill(

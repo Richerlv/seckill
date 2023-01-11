@@ -42,17 +42,15 @@
               status = 0;
     </update>
 
-    <!--    "失效"订单-->
-    <update id="inValid" parameterType="com.example.seckill.pojo.SuccessKilled">
-        UPDATE
+    <!--    删除订单-->
+    <delete id="deleteOrder" parameterType="com.example.seckill.pojo.SuccessKilled">
+        DELETE FROM
             successkilled
-        SET
-            status = -1
         WHERE
             seckillId = #{seckillId}
           AND
             userPhone = #{userPhone}
           AND
               status = 0;
-    </update>
+    </delete>
 </mapper>

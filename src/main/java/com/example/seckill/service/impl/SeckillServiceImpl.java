@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author: Richerlv
@@ -38,6 +39,7 @@ import java.util.*;
 public class SeckillServiceImpl implements SeckillService {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
+    volatile static int i = 0;
 
     @Autowired
     private SeckillMapper seckillMapper;
@@ -215,10 +217,10 @@ public class SeckillServiceImpl implements SeckillService {
             if (result == 1) {
                 SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
 
-//                //秒杀成功：发邮件
-//                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
-//                //秒杀成功：支付
-//                rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
+                //秒杀成功：发邮件
+                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+                //秒杀成功：死信队列监听支付
+                rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
                 return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
             } else {
                 return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
@@ -400,11 +402,20 @@ public class SeckillServiceImpl implements SeckillService {
                     if((Integer)redisTemplate.opsForValue().get(seckillKey) > 0) {
                         //TODO:减库存
                         redisTemplate.opsForValue().decrement(seckillKey);
-                        //TODO: redis中下订单 ps:这里的value不重要
-                        Boolean res = redisTemplate.opsForValue().setIfAbsent(orderKey, orderKey);
+                        //TODO: redis中下订单 ps:这里的value不重要,设置过期时间
+                        Boolean res = redisTemplate.opsForValue().setIfAbsent(orderKey, orderKey, 60, TimeUnit.SECONDS);
                         if(res) {
                             //TODO:异步下单
-                            return rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
+                            SeckillExecution seckillExecution =  rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
+                            if(seckillExecution.getState() == 1) {
+                                //秒杀成功：发邮件
+//                                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+                                //秒杀成功：死信队列监听支付
+                                i ++;
+                                System.out.println("进入死信队列------------------------->" + i);
+                                rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
+                            }
+                            return seckillExecution;
                         } else {
                             System.out.println("impl 222");
                             redisTemplate.opsForValue().increment(seckillKey);

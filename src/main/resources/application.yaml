@@ -78,7 +78,7 @@ spring:
     #发送邮件的账户
     username: richerlv@foxmail.com
     #授权码
-    password: ujoexrlcmrlriafi
+    password: lazeewrckazpieac
     test-connection: true
     properties:
       mail:

@@ -32,8 +32,8 @@ public interface SuccessKilledMapper {
     int pay(SuccessKilled successKilled);
 
     /**
-     * “失效”订单
+     * 删除订单
      */
-    int inValid(SuccessKilled successKilled);
+    int deleteOrder(SuccessKilled successKilled);
 
 }
