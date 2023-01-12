@@ -38,6 +38,12 @@
     </div>
 </div>
 
+<div class="field">
+    <!-- 验证码图片  -->
+    <img class="verifyCode" onclick="changeCode()" src="yanzheng">
+    <input class="verifyInput"  name="verifyInput" placeholder="请输入验证码">
+</div>
+
 <div id="killPhoneModal" class="modal fade">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -75,8 +81,17 @@
             startTime : [[${seckill.start}]],
             endTime : [[${seckill.end}]]
         });
+            var src = "http://localhost:8080/test"
+            $('.verifyCode').attr("src",src);
+
     });
 
+    function changeCode(){
+
+        var src = "http://localhost:8080/test"
+        $('.verifyCode').attr("src",src);
+
+    }
 
     // 存放主要交互逻辑代码
     // javascript 模块化

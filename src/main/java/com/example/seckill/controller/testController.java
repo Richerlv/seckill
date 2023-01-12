@@ -1,25 +1,20 @@
 package com.example.seckill.controller;
 
-import com.example.seckill.dto.MailDto;
 import com.example.seckill.pojo.SuccessKilled;
-import com.example.seckill.service.MailService;
-import com.example.seckill.service.RedisService;
+import com.example.seckill.service.*;
 import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dao.SuccessKilledMapper;
-import com.example.seckill.dto.SeckillExecution;
-import com.example.seckill.enums.SeckillStateEnum;
-import com.example.seckill.exception.RepeatKillException;
-import com.example.seckill.exception.SeckillCloseException;
-import com.example.seckill.service.SeckillService;
-import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.OutputStream;
 
 /**
  * @author: Richerlv
@@ -52,6 +47,26 @@ public class testController {
         SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
         int res = successKilledMapper.pay(successKilled);
         logger.info("支付结果：{}", res);
+        return "test";
+    }
+
+    @Autowired
+    private CaptchasService captchasUtils;
+
+    @RequestMapping(value = "/test")
+    @ResponseBody
+    public String test(HttpServletRequest request, HttpServletResponse response) {
+        BufferedImage img = captchasUtils.createCaptchas(2, "1111111111");
+        try {
+            response.setContentType("image/png");
+            OutputStream out = response.getOutputStream();
+            ImageIO.write(img, "png", out);
+            out.flush();
+            out.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return "test";
     }
 }

@@ -5,8 +5,42 @@
     <title></title>
 </head>
 <body>
-<h1 th:text="#{list}"></h1>
+<form class="ui form error" method="post"
+      action="${pageContext.request.contextPath }/user">
+    <div class="field">
+        用户名
+        <input autofocus="" id="id_username" maxlength="254" name="username" type="text" required />
+    </div>
 
-<h1>it is ok</h1>
+    <div class="field">
+        密码
+        <input id="id_password" name="password" type="password" required />
+    </div>
+
+    <div class="field">
+        <!-- 验证码图片  -->
+        <img class="verifyCode" onclick="changeCode()" src="yanzheng">
+        <input class="verifyInput"  name="verifyInput" placeholder="请输入验证码">
+    </div>
+
+    <button class="ui inverted red circular right floated button" type="submit">
+        登录
+    </button>
+</form>
+<script type="text/javascript" th:inline="javascript">
+
+    $(function (){
+        var src = "http://localhost:8080/test"
+        $('.verifyCode').attr("src",src);
+    });
+
+    /* 点击刷新验证码 */
+    function changeCode(){
+
+        var src = "http://localhost:8080/test"
+        $('.verifyCode').attr("src",src);
+
+    }
+</script>
 </body>
 </html>
