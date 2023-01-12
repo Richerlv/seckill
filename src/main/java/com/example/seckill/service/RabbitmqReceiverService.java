@@ -64,13 +64,16 @@ public class RabbitmqReceiverService {
         }
     }
 
-//    /**
-//     * 秒杀成功进入支付-消费消息
-//     */
-//    @RabbitListener(queues = "pay_queue", containerFactory = "multiListenerContainer")
-//    public void consumePayMsg(SuccessKilled info) {
-//        logger.info("秒杀成功进入支付-接收消息：{}", info);
-//        try {
+    /**
+     * 秒杀成功进入支付-消费消息
+     */
+    @RabbitListener(queues = "pay_queue", containerFactory = "multiListenerContainer")
+    public void consumePayMsg(SuccessKilled info) {
+        logger.info("秒杀成功进入支付-接收消息：{}", info);
+        try {
+            while(true) {
+
+            }
 //            //TODO：判断是不是“未支付”
 //            if(info.getStatus() == 0) {
 //                //TODO: 支付
@@ -83,10 +86,10 @@ public class RabbitmqReceiverService {
 //            } else {
 //                logger.error("{}：订单状态异常", info);
 //            }
-//        } catch (Exception e) {
-//            logger.error("秒杀成功进入支付-接收消息-发生异常：{}", e.fillInStackTrace());
-//        }
-//    }
+        } catch (Exception e) {
+            logger.error("秒杀成功进入支付-接收消息-发生异常：{}", e.fillInStackTrace());
+        }
+    }
 
     /**
      * redis预减库存成功异步下单
@@ -124,7 +127,7 @@ public class RabbitmqReceiverService {
      * 秒杀成功进入支付-监听者
      */
     @RabbitListener(queues = "nopay_dead_queue", containerFactory = "singleListenerContainer")
-    public void consumePayMsg(SuccessKilled info) {
+    public void consumePayMsgListener(SuccessKilled info) {
         logger.info("秒杀成功进入支付-监听者：{}", info);
         try {
             //TODO：判断是不是“未支付”

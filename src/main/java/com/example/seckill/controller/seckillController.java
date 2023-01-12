@@ -91,8 +91,9 @@ public class seckillController {
      * 1000 * 10
      *
      * 优化sql前QPS： 226
-     * 使用存储过程后的QPS：374
+     * 使用存储过程后的QPS：417
      * 使用redis后的QPS：589
+     * lua脚本: 719
      */
     @RequestMapping(value = "/{seckillId}/{md5}/execution", method = RequestMethod.POST,
             produces = {"application/json;charset=UTF-8"})
@@ -113,7 +114,7 @@ public class seckillController {
 //            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
 
             //redis优化
-            SeckillExecution seckillExecution = seckillService.executeV5(seckillId, killPhone, md5);
+            SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
         } catch (RepeatKillException e1) {
@@ -153,4 +154,7 @@ public class seckillController {
             redisService.set(seckillList.get(i).getSeckillId() + "" + "stock:", seckillList.get(i).getNumber());
         }
     }
+
+
+
 }

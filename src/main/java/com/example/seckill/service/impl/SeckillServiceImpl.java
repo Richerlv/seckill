@@ -309,7 +309,8 @@ public class SeckillServiceImpl implements SeckillService {
     }
 
     /**
-     * redis + lua解决超卖：还有bug
+     * redis + lua解决超卖：
+     * QPS:719
      *
      * @param seckillId
      * @param userPhone
@@ -346,7 +347,7 @@ public class SeckillServiceImpl implements SeckillService {
             list.add(orderKey);
             list.add(seckillKey);
             // 参数一：redisScript，参数二：key列表，参数三：arg（可多个）
-            Long res = (Long)redisTemplate.execute(redisScript, list, orderKey);
+            Long res = (Long)redisTemplate.execute(redisScript, list);
             System.out.println("res = " + res);
             if(res == 1) {
                 //TODO:访问数据库
@@ -407,7 +408,7 @@ public class SeckillServiceImpl implements SeckillService {
                         if(res) {
                             //TODO:异步下单
                             SeckillExecution seckillExecution =  rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
-                            if(seckillExecution.getState() == 1) {
+                            if(seckillExecution != null && seckillExecution.getState() == 1) {
                                 //秒杀成功：发邮件
 //                                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
                                 //秒杀成功：死信队列监听支付
