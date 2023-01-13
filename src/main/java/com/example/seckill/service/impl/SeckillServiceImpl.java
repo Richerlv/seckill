@@ -10,6 +10,7 @@ import com.example.seckill.exception.SeckillCloseException;
 import com.example.seckill.exception.SeckillException;
 import com.example.seckill.pojo.Seckill;
 import com.example.seckill.pojo.SuccessKilled;
+import com.example.seckill.service.CaptchasService;
 import com.example.seckill.service.RabbitmqSenderService;
 import com.example.seckill.service.RedisService;
 import com.example.seckill.service.SeckillService;
@@ -39,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 public class SeckillServiceImpl implements SeckillService {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    volatile static int i = 0;
 
     @Autowired
     private SeckillMapper seckillMapper;
@@ -123,6 +123,7 @@ public class SeckillServiceImpl implements SeckillService {
         }
 
     }
+
 
     private String getMD5(int seckillId) {
         String base = seckillId + "/" + salt;
@@ -309,7 +310,7 @@ public class SeckillServiceImpl implements SeckillService {
     }
 
     /**
-     * redis + lua解决超卖：
+     * redis + lua + Rabbitmq
      * QPS:719
      *
      * @param seckillId
@@ -350,20 +351,21 @@ public class SeckillServiceImpl implements SeckillService {
             Long res = (Long)redisTemplate.execute(redisScript, list);
             System.out.println("res = " + res);
             if(res == 1) {
-                //TODO:访问数据库
-                //执行存储过程
-                seckillMapper.killByProcedure(params);
-                int result = (int) params.get("result");
-                if (result == 1) {
-                    SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
-                    return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+                //TODO:异步下单
+                SeckillExecution seckillExecution =  rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
+                if(seckillExecution != null && seckillExecution.getState() == 1) {
+                    //秒杀成功：发邮件
+                    rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+                    //秒杀成功：死信队列监听支付
+                    rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
                 } else {
-                    System.out.println(111);
-                    return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+                    redisTemplate.opsForValue().increment(seckillKey);
+                    redisTemplate.delete(orderKey);
                 }
+                return seckillExecution;
             } else {
                 System.out.println(222);
-                return new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+                return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(Math.toIntExact(res)));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -410,11 +412,12 @@ public class SeckillServiceImpl implements SeckillService {
                             SeckillExecution seckillExecution =  rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
                             if(seckillExecution != null && seckillExecution.getState() == 1) {
                                 //秒杀成功：发邮件
-//                                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+                                rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
                                 //秒杀成功：死信队列监听支付
-                                i ++;
-                                System.out.println("进入死信队列------------------------->" + i);
                                 rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
+                            } else {
+                                redisTemplate.opsForValue().increment(seckillKey);
+                                redisTemplate.delete(orderKey);
                             }
                             return seckillExecution;
                         } else {

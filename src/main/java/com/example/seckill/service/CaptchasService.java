@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author: Richerlv
@@ -17,7 +18,7 @@ import java.util.Random;
 @Component
 public class CaptchasService {
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 生成图片验证码
@@ -30,15 +31,15 @@ public class CaptchasService {
         graph.setColor(new Color(0xDCDCDC));
         graph.fillRect(0, 0, width, height);
         //生成验证码
-        int vCode = createRandom();
+        Integer vCode = createRandom();
         graph.setColor(new Color(0,100,0));
         graph.setFont(new Font("Candara",Font.BOLD,24));
         //将验证码写在图片上
         graph.drawString(String.valueOf(vCode), 8, 24);
         graph.dispose();
         //将计算结果保存到redis上面去，过期时间1分钟
-        String key = seckillId + userPhone + "captchas:";
-        redisTemplate.opsForValue().set(key, vCode, 6000);
+        String key = seckillId + userPhone + "captchas";
+        redisTemplate.opsForValue().set(key, vCode, 6000, TimeUnit.SECONDS);
         return img;
     }
 
@@ -61,12 +62,11 @@ public class CaptchasService {
      * @return
      */
     public boolean verifyCode(int seckillId, String userPhone, int code) {
-        String key = seckillId + userPhone + "captchas:";
+        String key = seckillId + userPhone + "captchas";
         Integer codeInRedis = (Integer) redisTemplate.opsForValue().get(key);
+        System.out.println("codeInRedis" + codeInRedis);
         if(codeInRedis != null) {
-            if(codeInRedis.equals(code)) {
-                return true;
-            }
+            return codeInRedis == code;
         }
         return false;
     }

@@ -7,12 +7,15 @@ import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.exception.RepeatKillException;
 import com.example.seckill.exception.SeckillCloseException;
 import com.example.seckill.pojo.Seckill;
+import com.example.seckill.service.CaptchasService;
 import com.example.seckill.service.RedisService;
 import com.example.seckill.service.SeckillService;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +41,8 @@ public class seckillController {
     private SeckillService seckillService;
     @Autowired
     private RedisService redisService;
+    @Autowired
+    private CaptchasService captchasService;
 
     /**
      * 获取商品列表
@@ -66,6 +71,22 @@ public class seckillController {
         }
         model.addAttribute("seckill", seckillDetail);
         return "detail";
+    }
+
+    /**
+     * 校验验证码
+     */
+    @RequestMapping(value = "/{seckillId}/{code}/verify", method = RequestMethod.GET)
+    @ResponseBody
+    public Result<Object> verifyCode(@PathVariable("code") Integer code,
+                                     @PathVariable("seckillId") Integer seckillId,
+                                     @CookieValue(value = "killPhone", required = false) String killPhone) {
+        Boolean res = captchasService.verifyCode(seckillId, killPhone, code);
+        if(res == true) {
+            return new Result<>(true, "verify pass!");
+        } else {
+            return new Result<>(false, "verify failed!");
+        }
     }
 
     /**

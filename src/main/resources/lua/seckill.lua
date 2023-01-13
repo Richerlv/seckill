@@ -21,8 +21,8 @@ if not order then
             return 4
         end
     else
-        return 3
+        return 0
     end
 else
-    return 2
+    return -1
 end
