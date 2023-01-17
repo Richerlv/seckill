@@ -32,6 +32,11 @@ public interface SuccessKilledMapper {
     int pay(SuccessKilled successKilled);
 
     /**
+     * 取消订单
+     */
+    int cancel(SuccessKilled successKilled);
+
+    /**
      * 删除订单
      */
     int deleteOrder(SuccessKilled successKilled);

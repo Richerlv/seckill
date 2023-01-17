@@ -2,6 +2,7 @@ package com.example.seckill.service;
 
 import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dto.Exposer;
+import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.exception.RepeatKillException;
 import com.example.seckill.exception.SeckillCloseException;
@@ -59,4 +60,9 @@ public interface SeckillService {
 
     SeckillExecution executeV5(int seckillId, String userPhone, String md5);
 
+
+    /**
+     * 用户支付/取消订单
+     */
+    Result<String> dealOrder(int seckillId, String userPhone);
 }

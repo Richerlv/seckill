@@ -1,6 +1,7 @@
 package com.example.seckill.service;
 
 import com.example.seckill.dao.SuccessKilledMapper;
+import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
@@ -137,6 +138,43 @@ public class RabbitmqSenderService {
             logger.error("redis预减库存成功异步下单-出现异常:{}", e.fillInStackTrace());
             return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
         }
+    }
+
+    /**
+     * 用户支付/取消订单-通知消息
+     */
+    public Result<String> toDeal(Integer seckillId, String userPhone) {
+        logger.info("用户支付/取消订单-准备发送消息：{}", seckillId);
+        try {
+            //参数校验
+            if(seckillId != null && userPhone != null) {
+                //查订单
+                SuccessKilled info = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
+                if(info != null) {
+                    //发消息
+                    rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
+                    rabbitTemplate.setExchange("deal_exchange");
+                    rabbitTemplate.setRoutingKey("deal_routingkey");
+
+                    Result<String> res = (Result<String>) rabbitTemplate.convertSendAndReceive(info, new MessagePostProcessor() {
+                        @Override
+                        public Message postProcessMessage(Message message) throws AmqpException {
+                            MessageProperties messageProperties = new MessageProperties();
+                            messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                            messageProperties.setHeader(AbstractJavaTypeMapper.DEFAULT_CONTENT_CLASSID_FIELD_NAME, SuccessKilled.class);
+                            return message;
+                        }
+                    });
+                    return res;
+                }
+
+            } else {
+                return new Result<>(false, "此订单不存在！");
+            }
+        } catch (Exception e) {
+            logger.error("用户支付/取消订单-发生异常：{}", e.fillInStackTrace());
+        }
+        return null;
     }
 
 }

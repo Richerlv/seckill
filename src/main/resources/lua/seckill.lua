@@ -3,6 +3,7 @@ local orderKey = KEYS[1]
 --用户手机号
 local seckillKey = KEYS[2]
 
+
 --判断的流程:
 
 --判断是否重复抢购

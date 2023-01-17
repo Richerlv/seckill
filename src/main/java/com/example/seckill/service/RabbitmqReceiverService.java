@@ -3,6 +3,7 @@ package com.example.seckill.service;
 import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dao.SuccessKilledMapper;
 import com.example.seckill.dto.MailDto;
+import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
@@ -64,32 +65,17 @@ public class RabbitmqReceiverService {
         }
     }
 
-    /**
-     * 秒杀成功进入支付-消费消息
-     */
-    @RabbitListener(queues = "pay_queue", containerFactory = "multiListenerContainer")
-    public void consumePayMsg(SuccessKilled info) {
-        logger.info("秒杀成功进入支付-接收消息：{}", info);
-        try {
-            while(true) {
-
-            }
-//            //TODO：判断是不是“未支付”
-//            if(info.getStatus() == 0) {
-//                //TODO: 支付
-//                int payRes = successKilledMapper.pay(info);
-//                if(payRes > 0) {
-//                    logger.info("{}：支付成功", info.getUserPhone());
-//                } else {
-//                    logger.error("{}：支付失败", info.getUserPhone());
-//                }
-//            } else {
-//                logger.error("{}：订单状态异常", info);
-//            }
-        } catch (Exception e) {
-            logger.error("秒杀成功进入支付-接收消息-发生异常：{}", e.fillInStackTrace());
-        }
-    }
+//    /**
+//     * 秒杀成功进入支付-消费消息:这里绑定了死信队列
+//     */
+//    @RabbitListener(queues = "pay_queue", containerFactory = "multiListenerContainer")
+//    public void consumePayMsg(SuccessKilled info) {
+//        logger.info("秒杀成功进入支付-接收消息：{}", info);
+//        try {
+//        } catch (Exception e) {
+//            logger.error("秒杀成功进入支付-接收消息-发生异常：{}", e.fillInStackTrace());
+//        }
+//    }
 
     /**
      * redis预减库存成功异步下单
@@ -130,20 +116,48 @@ public class RabbitmqReceiverService {
     public void consumePayMsgListener(SuccessKilled info) {
         logger.info("秒杀成功进入支付-监听者：{}", info);
         try {
-            //TODO：判断是不是“未支付”
-            if(info.getStatus() == 0) {
-                //TODO: 删除mysql中的订单, 恢复数据库的库存
-                int payRes = successKilledMapper.deleteOrder(info);
-                int incrRes = seckillMapper.incrCount(info.getSeckillId());
+            //TODO：判断是不是“未支付”,这里需要重新查询一遍，传过来未支付，有可能TTL内订单状态有变动
+            SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(info.getSeckillId(), info.getUserPhone());
+            if(successKilled != null && successKilled.getStatus() == 0) {
+                //TODO: 删除mysql中的订单, 恢复数据库的库存 --mysql的事务,失败了应该出队之后重新入队
+                int payRes = successKilledMapper.deleteOrder(successKilled);
+                int incrRes = seckillMapper.incrCount(successKilled.getSeckillId());
 
-                //TODO:删除redis中的订单、恢复redis中的库存
-                String orderKey = info.getSeckillId() + "" + info.getUserPhone();
-                String seckillKey = info.getSeckillId() + "" + "stock:";
+                //TODO:删除redis中的订单、恢复redis中的库存 --应该用lua脚本原子化
+                String orderKey = successKilled.getSeckillId() + "" + successKilled.getUserPhone();
+                String seckillKey = successKilled.getSeckillId() + "" + "stock:";
                 redisTemplate.delete(orderKey);
                 redisTemplate.opsForValue().increment(seckillKey);
             }
         } catch (Exception e) {
             logger.error("秒杀成功进入支付-监听者-发生异常：{}", e.fillInStackTrace());
         }
+    }
+
+    /**
+     * 用户支付/取消订单(这里只实现取消)
+     */
+    @RabbitListener(queues = "deal_queue", containerFactory = "singleListenerContainer")
+    public Result<String> consumeDealMsg(SuccessKilled info) {
+        logger.info("用户支付/取消订单-接收消息：{}", info);
+        Result<String> res = new Result<>(false, "订单状态异常,取消失败！");;
+        try {
+            //TODO：判断是不是“未支付”,这里需要重新查询一遍，传过来未支付，有可能TTL内订单状态有变动
+            SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(info.getSeckillId(), info.getUserPhone());
+            if(successKilled != null && successKilled.getStatus() == 0) {
+                //TODO: 取消订单
+                int cancelRes = successKilledMapper.cancel(successKilled);
+                if(cancelRes == 0) {
+                    res = new Result<>(false, "取消失败,请重试");
+                } else {
+                    res = new Result<>(true, "取消成功！");
+                }
+            } else {
+                res = new Result<>(false, "订单状态异常,取消失败！");
+            }
+        } catch (Exception e) {
+            logger.error("用户支付/取消订单-发生异常：{}", e.fillInStackTrace());
+        }
+        return res;
     }
 }

@@ -3,6 +3,7 @@ package com.example.seckill.service.impl;
 import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dao.SuccessKilledMapper;
 import com.example.seckill.dto.Exposer;
+import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.exception.RepeatKillException;
@@ -339,7 +340,7 @@ public class SeckillServiceImpl implements SeckillService {
             String orderKey = seckillId + "" + userPhone;
 
             // 执行 lua 脚本
-            DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+            DefaultRedisScript redisScript = new DefaultRedisScript();
             // 指定 lua 脚本
             redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/seckill.lua")));
             // 指定返回类型
@@ -354,10 +355,10 @@ public class SeckillServiceImpl implements SeckillService {
                 //TODO:异步下单
                 SeckillExecution seckillExecution =  rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
                 if(seckillExecution != null && seckillExecution.getState() == 1) {
-                    //秒杀成功：发邮件
-                    rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
-                    //秒杀成功：死信队列监听支付
-                    rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
+//                    //秒杀成功：发邮件
+//                    rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
+//                    //秒杀成功：死信队列监听支付
+//                    rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
                 } else {
                     redisTemplate.opsForValue().increment(seckillKey);
                     redisTemplate.delete(orderKey);
@@ -441,5 +442,13 @@ public class SeckillServiceImpl implements SeckillService {
             e.printStackTrace();
             return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
         }
+    }
+
+    /**
+     * 用户支付/取消订单
+     */
+    @Override
+    public Result<String> dealOrder(int seckillId, String userPhone) {
+        return rabbitmqSenderService.toDeal(seckillId, userPhone);
     }
 }

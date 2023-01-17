@@ -15,13 +15,18 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * @author: Richerlv
@@ -43,6 +48,10 @@ public class seckillController {
     private RedisService redisService;
     @Autowired
     private CaptchasService captchasService;
+    @Resource
+    private RedisTemplate redisTemplate;
+
+    private ExecutorService executorService;
 
     /**
      * 获取商品列表
@@ -128,13 +137,85 @@ public class seckillController {
 
         Result<SeckillExecution> result;
         try {
+            //简单接口限流 - 计数器  线程不安全
+            //分布式锁，解决线程不安全
+//            Boolean res = redisTemplate.opsForValue().setIfAbsent("lock", 1);
+//            if(res) {
+//                //设置过期时间
+//                redisTemplate.expire("lock", 1, TimeUnit.MINUTES);
+//                try {
+//                    String key = "limit";
+//                    Integer count = (Integer) redisTemplate.opsForValue().get(key);
+//                    if(count == null) {
+//                        redisTemplate.opsForValue().set(key, 1, 100, TimeUnit.MINUTES);
+//                    } else if(count < 50) {
+//                        redisTemplate.opsForValue().increment(key);
+//                    } else {
+//                        System.out.println("被限流了");
+//                        return null;
+//                    }
+//                    //redis优化
+//                    SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
+//                    result = new Result<>(true, seckillExecution);
+//                    return result;
+//                } finally {
+//                    redisTemplate.delete("lock");
+//                }
+//            }
+//            return null;
+
+//            /**
+//             * 限流操作原子化
+//             */
+//            DefaultRedisScript redisScript = new DefaultRedisScript();
+//            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/limit.lua")));
+//            redisScript.setResultType(Long.class);
+//            List<Object> list = new ArrayList<>();
+//            list.add(50);
+//            list.add(600000);
+//            // 参数一：redisScript，参数二：key列表，参数三：arg（可多个）
+//            Long res = (Long)redisTemplate.execute(redisScript, list);
+//            if(res == 0L) {
+//                SeckillExecution execution = new SeckillExecution(seckillId, SeckillStateEnum.END);
+//                return new Result<>(true, execution);
+//            }
             //优化后:调用存储过程
 //            SeckillExecution seckillExecution = seckillService.executeProcedure(seckillId, killPhone, md5);
 
             //优化前:
 //            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
+            //redis + lua:
+            SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
+            result = new Result<>(true, seckillExecution);
+            return result;
+        } catch (RepeatKillException e1) {
+            SeckillExecution execution = new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
+            return new Result<>(true, execution);
+        } catch (SeckillCloseException e2) {
+            SeckillExecution execution = new SeckillExecution(seckillId, SeckillStateEnum.END);
+            return new Result<>(true, execution);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            SeckillExecution execution = new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
+            return new Result<>(true, execution);
+        }
+    }
 
-            //redis优化
+    /**
+     * 秒杀 -- 线程池泄洪
+     */
+    @RequestMapping(value = "/{seckillId}/{md5}/executionV2", method = RequestMethod.POST,
+            produces = {"application/json;charset=UTF-8"})
+    @ResponseBody
+    public Result<SeckillExecution> executeV2(@PathVariable("seckillId") Integer seckillId,
+                                            @CookieValue(value = "killPhone", required = false) String killPhone,
+                                            @PathVariable("md5") String md5) {
+        if(killPhone == null) {
+            return new Result<>(false, "未注册");
+        }
+
+        Result<SeckillExecution> result;
+        try {
             SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
@@ -176,6 +257,26 @@ public class seckillController {
         }
     }
 
+    /**
+     * 用户支付/取消订单
+     */
+    @RequestMapping(value = "/{seckillId}/deal", method = RequestMethod.POST,
+            produces = {"application/json;charset=UTF-8"})
+    @ResponseBody
+    public Result<String> dealOrder(@PathVariable("seckillId") Integer seckillId,
+                                    @CookieValue(value = "killPhone", required = false) String killPhone) {
+        return seckillService.dealOrder(seckillId, killPhone);
+    }
+
+    /**
+     * 线程池初始化
+     */
+    @PostConstruct
+    public void init() {
+        executorService = new ThreadPoolExecutor(10, 10, 0,
+                TimeUnit.MINUTES, new LinkedBlockingDeque<>(1024),
+                new ThreadPoolExecutor.AbortPolicy());
+    }
 
 
 }

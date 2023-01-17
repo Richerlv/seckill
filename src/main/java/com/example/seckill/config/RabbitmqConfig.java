@@ -50,6 +50,9 @@ public class RabbitmqConfig {
     private final static String ORDER_QUEUE = "order_queue";
     private final static String ORDER_EXCHANGE = "order_exchange";
     private final static String ORDER_ROUTINGKEY = "order_routingkey";
+    private final static String DEAL_QUEUE = "deal_queue";
+    private final static String DEAL_EXCHANGE = "deal_exchange";
+    private final static String DEAL_ROUTINGKEY = "deal_routingkey";
 
     /**
      * 单一消费者
@@ -162,6 +165,24 @@ public class RabbitmqConfig {
     @Bean
     public Binding orderBinding() {
         return BindingBuilder.bind(orderQueue()).to(orderExchange()).with(ORDER_ROUTINGKEY);
+    }
+
+    /**
+     * 用户支付/取消订单的消息模型
+     */
+    @Bean
+    public Queue dealQueue() {
+        return new Queue(DEAL_QUEUE, true);
+    }
+
+    @Bean
+    public TopicExchange dealExchange() {
+        return new TopicExchange(DEAL_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Binding dealBinding() {
+        return BindingBuilder.bind(dealQueue()).to(dealExchange()).with(DEAL_ROUTINGKEY);
     }
 
 }

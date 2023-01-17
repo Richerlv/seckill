@@ -35,13 +35,12 @@
                 <span class="glyphicon" id="seckill-box"></span>
             </h2>
         </div>
+        <div class="field">
+            <!-- 验证码图片  -->
+            <img class="verifyCode" onclick="changeCode()" src="yanzheng">
+            <input class="verifyInput"  name="verifyInput" placeholder="请输入验证码">
+        </div>
     </div>
-</div>
-
-<div class="field">
-    <!-- 验证码图片  -->
-    <img class="verifyCode" onclick="changeCode()" src="yanzheng">
-    <input class="verifyInput"  name="verifyInput" placeholder="请输入验证码">
 </div>
 
 <div id="killPhoneModal" class="modal fade">
@@ -87,10 +86,8 @@
     });
 
     function changeCode(){
-
         var src = "http://localhost:8080/test"
         $('.verifyCode').attr("src",src);
-
     }
 
     // 存放主要交互逻辑代码
@@ -108,10 +105,14 @@
             },
             execution: function (seckillId, md5) {
                 return '/seckill/' + seckillId + '/' + md5 + '/execution';
-
+            },
+            verifyCode: function (seckillId, code) {
+                return '/seckill/' + seckillId + '/' + code + '/verify';
             }
         },
         handlerSeckillKill: function(seckillId, node) {
+            var code = [[${verifyInput}]]
+            console.log("code = " + code);
             //处理秒杀逻辑
             node.hide().html('<button class="btn btn-primary btn-lg" id="killBtn">开始秒杀</button>');//按钮
             $.post(seckill.URL.exposer(seckillId), {}, function (result) {

@@ -42,6 +42,20 @@
               status = 0;
     </update>
 
+    <!-- 取消-->
+    <update id="cancel" parameterType="com.example.seckill.pojo.SuccessKilled">
+        UPDATE
+            successkilled
+        SET
+            status = 2
+        WHERE
+            seckillId = #{seckillId}
+          AND
+            userPhone = #{userPhone}
+          AND
+            status = 0;
+    </update>
+
     <!--    删除订单-->
     <delete id="deleteOrder" parameterType="com.example.seckill.pojo.SuccessKilled">
         DELETE FROM

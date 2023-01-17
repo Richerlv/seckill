@@ -64,7 +64,6 @@ public class CaptchasService {
     public boolean verifyCode(int seckillId, String userPhone, int code) {
         String key = seckillId + userPhone + "captchas";
         Integer codeInRedis = (Integer) redisTemplate.opsForValue().get(key);
-        System.out.println("codeInRedis" + codeInRedis);
         if(codeInRedis != null) {
             return codeInRedis == code;
         }
