@@ -360,8 +360,8 @@ public class SeckillServiceImpl implements SeckillService {
 //                    //秒杀成功：死信队列监听支付
 //                    rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
                 } else {
-                    redisTemplate.opsForValue().increment(seckillKey);
-                    redisTemplate.delete(orderKey);
+//                    redisTemplate.opsForValue().increment(seckillKey);
+//                    redisTemplate.delete(orderKey);
                 }
                 return seckillExecution;
             } else {

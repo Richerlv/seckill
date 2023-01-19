@@ -179,12 +179,7 @@ public class seckillController {
 //                SeckillExecution execution = new SeckillExecution(seckillId, SeckillStateEnum.END);
 //                return new Result<>(true, execution);
 //            }
-            //优化后:调用存储过程
-//            SeckillExecution seckillExecution = seckillService.executeProcedure(seckillId, killPhone, md5);
 
-            //优化前:
-//            SeckillExecution seckillExecution = seckillService.executeSeckill(seckillId, killPhone, md5);
-            //redis + lua:
             SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
             result = new Result<>(true, seckillExecution);
             return result;
@@ -216,8 +211,15 @@ public class seckillController {
 
         Result<SeckillExecution> result;
         try {
-            SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
-            result = new Result<>(true, seckillExecution);
+            Future<Result> future = executorService.submit(new Callable<Result>() {
+                @Override
+                public Result<SeckillExecution> call() throws Exception {
+                    System.out.println(Thread.currentThread().getName());
+                    SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
+                    return new Result<>(true, seckillExecution);
+                }
+            });
+            result = future.get();
             return result;
         } catch (RepeatKillException e1) {
             SeckillExecution execution = new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
