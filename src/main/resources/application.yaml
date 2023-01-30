@@ -22,6 +22,8 @@ spring:
         auto-startup: true
         #被拒绝时重新进入队列
         default-requeue-rejected: false
+        #开启手动确认
+        acknowledge-mode: manual
     template:
       retry:
         #发布重试，默认false
@@ -34,6 +36,10 @@ spring:
         max-interval: 10000
         #重试间隔的乘数。比如配2.0 第一次等10s，第二次等20s，第三次等40s
         multiplier: 1.0
+        #发布确认 交换机-队列
+    publisher-returns: true
+    #发布确认 生产者-broker
+    publisher-confirm-type: correlated
 
   thymeleaf:
     #    关闭缓存

@@ -14,6 +14,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -214,7 +215,6 @@ public class seckillController {
             Future<Result> future = executorService.submit(new Callable<Result>() {
                 @Override
                 public Result<SeckillExecution> call() throws Exception {
-                    System.out.println(Thread.currentThread().getName());
                     SeckillExecution seckillExecution = seckillService.executeV4(seckillId, killPhone, md5);
                     return new Result<>(true, seckillExecution);
                 }
@@ -275,10 +275,9 @@ public class seckillController {
      */
     @PostConstruct
     public void init() {
-        executorService = new ThreadPoolExecutor(10, 10, 0,
+        executorService = new ThreadPoolExecutor(80, 80, 0,
                 TimeUnit.MINUTES, new LinkedBlockingDeque<>(1024),
                 new ThreadPoolExecutor.AbortPolicy());
     }
-
 
 }

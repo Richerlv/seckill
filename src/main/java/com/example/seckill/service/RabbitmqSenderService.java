@@ -5,6 +5,7 @@ import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
+import com.rabbitmq.client.Channel;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,6 @@ public class RabbitmqSenderService {
                 SuccessKilled info = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
                 if(info != null) {
                     //如果订单存在, 发消息
-                    rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
                     rabbitTemplate.setExchange("sendMailExchange");
                     rabbitTemplate.setRoutingKey("sendMailRoutingKey");
 
@@ -60,8 +60,6 @@ public class RabbitmqSenderService {
                             MessageProperties messageProperties = new MessageProperties();
                             //消息持久化, 避免在异常情况(重启，关闭，宕机)下消息系统中数据的丢失。
                             messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-                            //这样消费者就可以以相同类型接收消息
-                            messageProperties.setHeader(AbstractJavaTypeMapper.DEFAULT_CONTENT_CLASSID_FIELD_NAME, SuccessKilled.class);
                             return message;
                         }
                     });
@@ -84,7 +82,6 @@ public class RabbitmqSenderService {
                 SuccessKilled info = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
                 if(info != null) {
                     //发消息
-                    rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
                     rabbitTemplate.setExchange("pay_exchange");
                     rabbitTemplate.setRoutingKey("pay_routingkey");
 
@@ -93,7 +90,6 @@ public class RabbitmqSenderService {
                         public Message postProcessMessage(Message message) throws AmqpException {
                             MessageProperties messageProperties = new MessageProperties();
                             messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-                            messageProperties.setHeader(AbstractJavaTypeMapper.DEFAULT_CONTENT_CLASSID_FIELD_NAME, SuccessKilled.class);
                             return message;
                         }
                     });
@@ -117,7 +113,6 @@ public class RabbitmqSenderService {
                 info.put("seckillId", seckillId);
                 info.put("userPhone", userPhone);
 
-                rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
                 rabbitTemplate.setExchange("order_exchange");
                 rabbitTemplate.setRoutingKey("order_routingkey");
 
@@ -126,7 +121,6 @@ public class RabbitmqSenderService {
                     public Message postProcessMessage(Message message) throws AmqpException {
                         MessageProperties messageProperties = new MessageProperties();
                         messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-                        messageProperties.setHeader(AbstractJavaTypeMapper.DEFAULT_CONTENT_CLASSID_FIELD_NAME, HashMap.class);
                         return message;
                     }
                 });
@@ -152,7 +146,6 @@ public class RabbitmqSenderService {
                 SuccessKilled info = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
                 if(info != null) {
                     //发消息
-                    rabbitTemplate.setMessageConverter(new Jackson2JsonMessageConverter());
                     rabbitTemplate.setExchange("deal_exchange");
                     rabbitTemplate.setRoutingKey("deal_routingkey");
 
@@ -161,7 +154,6 @@ public class RabbitmqSenderService {
                         public Message postProcessMessage(Message message) throws AmqpException {
                             MessageProperties messageProperties = new MessageProperties();
                             messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-                            messageProperties.setHeader(AbstractJavaTypeMapper.DEFAULT_CONTENT_CLASSID_FIELD_NAME, SuccessKilled.class);
                             return message;
                         }
                     });

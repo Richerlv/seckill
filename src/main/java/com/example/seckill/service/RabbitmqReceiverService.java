@@ -7,16 +7,20 @@ import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.handler.annotation.Headers;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,12 +50,17 @@ public class RabbitmqReceiverService {
     @Resource
     private RedisTemplate redisTemplate;
 
+    @Resource
+    private RabbitTemplate rabbitTemplate;
+
     /**
      * 秒杀成功异步发送邮件-接收消息
      */
-    @RabbitListener(queues = "sendMailQueue",containerFactory = "singleListenerContainer")
-    public void consumeEmailMsg(SuccessKilled info) {
+//    @RabbitListener(queues = "sendMailQueue",containerFactory = "singleListenerContainer")
+    @RabbitListener(queues = "sendMailQueue")
+    public void consumeEmailMsg(SuccessKilled info, @Headers Map<String,Object> headers, Channel channel) throws Exception {
         logger.info("秒杀异步邮件通知-接收消息:{}",info);
+
         try {
             //TODO:发邮件
             MailDto dto = new MailDto();
@@ -63,28 +72,26 @@ public class RabbitmqReceiverService {
         } catch (Exception e) {
             logger.error("秒杀异步邮件通知-接收消息-发生异常:{}",e.fillInStackTrace());
         }
-    }
 
-//    /**
-//     * 秒杀成功进入支付-消费消息:这里绑定了死信队列
-//     */
-//    @RabbitListener(queues = "pay_queue", containerFactory = "multiListenerContainer")
-//    public void consumePayMsg(SuccessKilled info) {
-//        logger.info("秒杀成功进入支付-接收消息：{}", info);
-//        try {
-//        } catch (Exception e) {
-//            logger.error("秒杀成功进入支付-接收消息-发生异常：{}", e.fillInStackTrace());
-//        }
-//    }
+        /**
+         * deliveryTag:该消息的index
+         * multiple：是否批量.true:将一次性ack所有小于deliveryTag的消息
+         */
+        channel.basicAck((Long) headers.get(AmqpHeaders.DELIVERY_TAG),false);
+    }
 
     /**
      * redis预减库存成功异步下单
      */
-    @RabbitListener(queues = "order_queue", containerFactory = "singleListenerContainer")
-    public SeckillExecution consumeOrderMsg(HashMap<String, Object> info) {
+    @RabbitListener(queues = "order_queue")
+//    @RabbitListener(queues = "order_queue", containerFactory = "singleListenerContainer")
+    public SeckillExecution consumeOrderMsg(HashMap<String, Object> info, @Headers Map<String, Object> headers, Channel channel) throws Exception {
         logger.info("redis预减库存成功异步下单-接收消息:{}",info);
+        logger.info("headers:{}",headers);
+
         int seckillId = (int) info.get("seckillId");
         String userPhone = (String) info.get("userPhone");
+        SeckillExecution seckillExecution;
         try {
             //TODO:访问数据库
             Date nowTime = new Date();
@@ -98,21 +105,30 @@ public class RabbitmqReceiverService {
             int result = (int) params.get("result");
             if (result == 1) {
                 SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
-                return new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+                seckillExecution = new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
             } else {
-                return new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
+                //MySQL操作失败，回增redis
+                String seckillKey = seckillId + "" + "stock:";
+                String orderKey = seckillId + "" + userPhone;
+                redisTemplate.opsForValue().increment(seckillKey);
+                redisTemplate.delete(orderKey);
+                seckillExecution = new SeckillExecution(seckillId, SeckillStateEnum.stateOf(result));
             }
         } catch (Exception e) {
             logger.error("redis预减库存成功异步下单-接收消息-发生异常：",e.fillInStackTrace());
             return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
         }
+
+        channel.basicAck((Long) headers.get(AmqpHeaders.DELIVERY_TAG),false);
+        return seckillExecution;
     }
 
 
     /**
      * 秒杀成功进入支付-监听者
      */
-    @RabbitListener(queues = "nopay_dead_queue", containerFactory = "singleListenerContainer")
+    @RabbitListener(queues = "nopay_dead_queue")
+//    @RabbitListener(queues = "nopay_dead_queue", containerFactory = "singleListenerContainer")
     public void consumePayMsgListener(SuccessKilled info) {
         logger.info("秒杀成功进入支付-监听者：{}", info);
         try {
@@ -137,7 +153,8 @@ public class RabbitmqReceiverService {
     /**
      * 用户支付/取消订单(这里只实现取消)
      */
-    @RabbitListener(queues = "deal_queue", containerFactory = "singleListenerContainer")
+//    @RabbitListener(queues = "deal_queue", containerFactory = "singleListenerContainer")
+    @RabbitListener(queues = "deal_queue")
     public Result<String> consumeDealMsg(SuccessKilled info) {
         logger.info("用户支付/取消订单-接收消息：{}", info);
         Result<String> res = new Result<>(false, "订单状态异常,取消失败！");;

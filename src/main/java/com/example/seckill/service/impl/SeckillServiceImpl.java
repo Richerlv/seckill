@@ -354,15 +354,15 @@ public class SeckillServiceImpl implements SeckillService {
             if(res == 1) {
                 //TODO:异步下单
                 SeckillExecution seckillExecution =  rabbitmqSenderService.killSuccessToOrder(seckillId, userPhone);
-                if(seckillExecution != null && seckillExecution.getState() == 1) {
+//                if(seckillExecution != null && seckillExecution.getState() == 1) {
 //                    //秒杀成功：发邮件
 //                    rabbitmqSenderService.killSuccessSendMail(seckillId, userPhone);
 //                    //秒杀成功：死信队列监听支付
 //                    rabbitmqSenderService.killSuccessToPay(seckillId, userPhone);
-                } else {
+//                } else {
 //                    redisTemplate.opsForValue().increment(seckillKey);
 //                    redisTemplate.delete(orderKey);
-                }
+//                }
                 return seckillExecution;
             } else {
                 System.out.println(222);

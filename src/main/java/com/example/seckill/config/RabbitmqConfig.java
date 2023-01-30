@@ -1,10 +1,15 @@
 package com.example.seckill.config;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
@@ -21,22 +26,22 @@ import java.util.Map;
  */
 
 @Configuration
-public class RabbitmqConfig {
+public class RabbitmqConfig implements RabbitTemplate.ConfirmCallback,RabbitTemplate.ReturnsCallback {
 
     @Resource
-    private CachingConnectionFactory connectionFactory;
-
-    @Resource
-    private SimpleRabbitListenerContainerFactoryConfigurer factoryConfigurer;
-
-    @Value("${spring.rabbitmq.listener.simple.concurrency}")
-    private int concurrency;
-
-    @Value("${spring.rabbitmq.listener.simple.max-concurrency}")
-    private int maxConcurrency;
-
-    @Value("${spring.rabbitmq.listener.simple.prefetch}")
-    private int prefetch;
+    private RabbitTemplate rabbitTemplate;
+//
+//    @Resource
+//    private SimpleRabbitListenerContainerFactoryConfigurer factoryConfigurer;
+//
+//    @Value("${spring.rabbitmq.listener.simple.concurrency}")
+//    private int concurrency;
+//
+//    @Value("${spring.rabbitmq.listener.simple.max-concurrency}")
+//    private int maxConcurrency;
+//
+//    @Value("${spring.rabbitmq.listener.simple.prefetch}")
+//    private int prefetch;
 
     private final static String NOPAY_DEAD_QUEUE = "nopay_dead_queue";
     private final static String NOPAY_DEAD_EXCHANGE = "nopay_dead_exchange";
@@ -54,36 +59,55 @@ public class RabbitmqConfig {
     private final static String DEAL_EXCHANGE = "deal_exchange";
     private final static String DEAL_ROUTINGKEY = "deal_routingkey";
 
-    /**
-     * 单一消费者
-     * @return
-     */
-    @Bean(name = "singleListenerContainer")
-    public SimpleRabbitListenerContainerFactory listenerContainer(){
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactory);
-        factory.setMessageConverter(new Jackson2JsonMessageConverter());
-        factory.setConcurrentConsumers(1);
-        factory.setMaxConcurrentConsumers(1);
-        factory.setPrefetchCount(1);
-        return factory;
-    }
 
     /**
-     * 多个消费者-->高并发时提高消费效率
-     * @return
+     * 定制RabbitTamplate
      */
-    @Bean(name = "multiListenerContainer")
-    public SimpleRabbitListenerContainerFactory multiListenerContainer(){
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        factoryConfigurer.configure(factory,connectionFactory);
-        factory.setMessageConverter(new Jackson2JsonMessageConverter());
-        //确认消费模式-NONE
-        factory.setAcknowledgeMode(AcknowledgeMode.NONE);
-        factory.setConcurrentConsumers(concurrency);
-        factory.setMaxConcurrentConsumers(maxConcurrency);
-        factory.setPrefetchCount(prefetch);
-        return factory;
+    @PostConstruct
+    public void init() {
+        rabbitTemplate.setConfirmCallback(this);
+        rabbitTemplate.setReturnsCallback(this);
+    }
+
+
+//    /**
+//     * 单一消费者
+//     * @return
+//     */
+//    @Bean(name = "singleListenerContainer")
+//    public SimpleRabbitListenerContainerFactory listenerContainer(){
+//        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+//        factory.setConnectionFactory(connectionFactory);
+//        factory.setMessageConverter(new Jackson2JsonMessageConverter());
+//        factory.setConcurrentConsumers(1);
+//        factory.setMaxConcurrentConsumers(1);
+//        factory.setPrefetchCount(1);
+//        return factory;
+//    }
+//
+//    /**
+//     * 多个消费者-->高并发时提高消费效率
+//     * @return
+//     */
+//    @Bean(name = "multiListenerContainer")
+//    public SimpleRabbitListenerContainerFactory multiListenerContainer(){
+//        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+//        factoryConfigurer.configure(factory,connectionFactory);
+//        factory.setMessageConverter(new Jackson2JsonMessageConverter());
+//        //确认消费模式-NONE
+//        factory.setAcknowledgeMode(AcknowledgeMode.NONE);
+//        factory.setConcurrentConsumers(concurrency);
+//        factory.setMaxConcurrentConsumers(maxConcurrency);
+//        factory.setPrefetchCount(prefetch);
+//        return factory;
+//    }
+
+    /**
+     * 序列化
+     */
+    @Bean
+    public MessageConverter jackson2JsonMessageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
 
     /**
@@ -185,4 +209,30 @@ public class RabbitmqConfig {
         return BindingBuilder.bind(dealQueue()).to(dealExchange()).with(DEAL_ROUTINGKEY);
     }
 
+    /**
+     * 如果消息到达了或者没有到达交换机，都会触发该方法
+     *
+     * @param correlationData
+     * @param ack   如果 ack 为 true，表示消息到达了交换机，反之则没有到达
+     * @param cause
+     */
+    @Override
+    public void confirm(CorrelationData correlationData, boolean ack, String cause) {
+        if (ack) {
+            System.out.println("成功！消息到达了交换机");
+        } else {
+            System.out.println("失败！消息未到达交换机");
+            //TODO：这里要结合业务编写重新发送的逻辑
+        }
+    }
+
+    /**
+     * 消息未到达队列，会触发该方法
+     *
+     * @param returnedMessage
+     */
+    @Override
+    public void returnedMessage(ReturnedMessage returnedMessage) {
+        System.out.println("消息未到达队列");
+    }
 }
