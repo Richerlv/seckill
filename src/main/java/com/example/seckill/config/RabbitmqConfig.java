@@ -26,10 +26,8 @@ import java.util.Map;
  */
 
 @Configuration
-public class RabbitmqConfig implements RabbitTemplate.ConfirmCallback,RabbitTemplate.ReturnsCallback {
+public class RabbitmqConfig {
 
-    @Resource
-    private RabbitTemplate rabbitTemplate;
 //
 //    @Resource
 //    private SimpleRabbitListenerContainerFactoryConfigurer factoryConfigurer;
@@ -58,16 +56,6 @@ public class RabbitmqConfig implements RabbitTemplate.ConfirmCallback,RabbitTemp
     private final static String DEAL_QUEUE = "deal_queue";
     private final static String DEAL_EXCHANGE = "deal_exchange";
     private final static String DEAL_ROUTINGKEY = "deal_routingkey";
-
-
-    /**
-     * 定制RabbitTamplate
-     */
-    @PostConstruct
-    public void init() {
-        rabbitTemplate.setConfirmCallback(this);
-        rabbitTemplate.setReturnsCallback(this);
-    }
 
 
 //    /**
@@ -208,31 +196,5 @@ public class RabbitmqConfig implements RabbitTemplate.ConfirmCallback,RabbitTemp
     public Binding dealBinding() {
         return BindingBuilder.bind(dealQueue()).to(dealExchange()).with(DEAL_ROUTINGKEY);
     }
-
-    /**
-     * 如果消息到达了或者没有到达交换机，都会触发该方法
-     *
-     * @param correlationData
-     * @param ack   如果 ack 为 true，表示消息到达了交换机，反之则没有到达
-     * @param cause
-     */
-    @Override
-    public void confirm(CorrelationData correlationData, boolean ack, String cause) {
-        if (ack) {
-            System.out.println("成功！消息到达了交换机");
-        } else {
-            System.out.println("失败！消息未到达交换机");
-            //TODO：这里要结合业务编写重新发送的逻辑
-        }
-    }
-
-    /**
-     * 消息未到达队列，会触发该方法
-     *
-     * @param returnedMessage
-     */
-    @Override
-    public void returnedMessage(ReturnedMessage returnedMessage) {
-        System.out.println("消息未到达队列");
-    }
+    
 }

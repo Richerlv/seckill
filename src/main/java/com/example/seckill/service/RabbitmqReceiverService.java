@@ -1,5 +1,6 @@
 package com.example.seckill.service;
 
+import com.alibaba.fastjson.JSONObject;
 import com.example.seckill.dao.SeckillMapper;
 import com.example.seckill.dao.SuccessKilledMapper;
 import com.example.seckill.dto.MailDto;
@@ -71,6 +72,8 @@ public class RabbitmqReceiverService {
             mailService.sendSimpleEmail(dto);
         } catch (Exception e) {
             logger.error("秒杀异步邮件通知-接收消息-发生异常:{}",e.fillInStackTrace());
+            //出现异常则手动确认NACK
+            channel.basicNack((Long) headers.get(AmqpHeaders.DELIVERY_TAG),false, true);
         }
 
         /**
@@ -85,9 +88,16 @@ public class RabbitmqReceiverService {
      */
     @RabbitListener(queues = "order_queue")
 //    @RabbitListener(queues = "order_queue", containerFactory = "singleListenerContainer")
-    public SeckillExecution consumeOrderMsg(HashMap<String, Object> info, @Headers Map<String, Object> headers, Channel channel) throws Exception {
+    public SeckillExecution consumeOrderMsg(byte[] msg, @Headers Map<String, Object> headers, Channel channel) throws Exception {
+
+        //byte数组转化为Java对象
+        Map<String, Object> info = new HashMap<>();
+        if(msg!=null) {
+            String tmp=new String((byte[]) msg,"UTF-8");
+            info= JSONObject.parseObject(tmp, HashMap.class);
+        }
+
         logger.info("redis预减库存成功异步下单-接收消息:{}",info);
-        logger.info("headers:{}",headers);
 
         int seckillId = (int) info.get("seckillId");
         String userPhone = (String) info.get("userPhone");
@@ -116,6 +126,8 @@ public class RabbitmqReceiverService {
             }
         } catch (Exception e) {
             logger.error("redis预减库存成功异步下单-接收消息-发生异常：",e.fillInStackTrace());
+            //出现异常则手动确认NACK
+            channel.basicNack((Long) headers.get(AmqpHeaders.DELIVERY_TAG),false, true);
             return new SeckillExecution(seckillId, SeckillStateEnum.INNER_ERROR);
         }
 

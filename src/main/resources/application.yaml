@@ -25,6 +25,7 @@ spring:
         #开启手动确认
         acknowledge-mode: manual
     template:
+      #SpringBoot本身的重试机制和MQ没有关系：应用于发送方从一开始就连不上 MQ
       retry:
         #发布重试，默认false
         enabled: true

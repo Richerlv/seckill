@@ -1,5 +1,6 @@
 package com.example.seckill.service;
 
+import com.alibaba.fastjson.JSON;
 import com.example.seckill.dao.SuccessKilledMapper;
 import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
@@ -10,10 +11,8 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageDeliveryMode;
-import org.springframework.amqp.core.MessagePostProcessor;
-import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.AbstractJavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -22,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * @author: Richerlv
@@ -115,15 +115,24 @@ public class RabbitmqSenderService {
 
                 rabbitTemplate.setExchange("order_exchange");
                 rabbitTemplate.setRoutingKey("order_routingkey");
+                //看CorrelationData源码
+                CorrelationData correlationData = new CorrelationData();
+                //看ReturnedMessage源码
+                correlationData.setReturned(
+                        new ReturnedMessage(new Message(JSON.toJSONString(info).getBytes()),
+                                000,
+                                "这是Richerlv自制的ReturnedMessage",
+                                "order_exchange",
+                                "order_routingkey"));
 
-                SeckillExecution seckillExecution = (SeckillExecution) rabbitTemplate.convertSendAndReceive(info, new MessagePostProcessor() {
+                SeckillExecution seckillExecution = (SeckillExecution) rabbitTemplate.convertSendAndReceive(JSON.toJSONString(info).getBytes(), new MessagePostProcessor() {
                     @Override
                     public Message postProcessMessage(Message message) throws AmqpException {
                         MessageProperties messageProperties = new MessageProperties();
                         messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
                         return message;
                     }
-                });
+                }, correlationData);
                 return seckillExecution;
             } else {
                 return new SeckillExecution(seckillId, SeckillStateEnum.DATA_REWRITE);
