@@ -45,6 +45,7 @@ spring:
   thymeleaf:
     #    关闭缓存
     cache: false
+    prefix: classpath:/templates/
 
   #  这是因为Springfox使用的路径匹配是基于AntPathMatcher的，而Spring Boot 2.6.0使用的是PathPatternMatcher。
   mvc:

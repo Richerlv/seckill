@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>商城高并发抢购-用户登录</title>
+    <div th:replace="head::head"></div>
+</head>
+<body>
+<div class="container">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h1 align="center">这是用户登录页</h1>
+
+            <form method="post" th:action="@{/login}">
+                <table align="center" border="0">
+                    <tr>
+                        <td>用户名:</td>
+
+                        <td><input type="text" name="userName" th:value="${userName}"></td>
+                    </tr>
+                    <br/>
+                    <tr>
+                        <td>密&nbsp;&nbsp;码:</td>
+                        <td><input type="password" name="password"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="submit" value="登录" name="login"></td>
+                        <td><input type="reset" value="重置" name="reset"></td>
+                    </tr>
+                </table>
+            </form>
+
+            <h2 align="center">[[${userName}]]&nbsp;&nbsp;&nbsp;[[${errorMsg}]]</h2>
+        </div>
+    </div>
+</div>
+</body>
+<!--<script src="/asserts/js/jquery.js"></script>-->
+<!--<script src="/asserts/js/bootstrap-3.3.0/js/bootstrap.min.js"></script>-->
+<!--<script src="/asserts/js/jquery.cookie.min.js"></script>-->
+<!--<script src="/asserts/js/jquery.countdown.min.js"></script>-->
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

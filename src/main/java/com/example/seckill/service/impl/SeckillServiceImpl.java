@@ -212,6 +212,8 @@ public class SeckillServiceImpl implements SeckillService {
         params.put("userPhone", userPhone);
         params.put("nowTime", nowTime);
         params.put("result", null);
+        //TODO：生成订单号
+        params.put("orderNo", "123456789987654321");
         try {
             //执行存储过程
             seckillMapper.killByProcedure(params);
@@ -342,7 +344,7 @@ public class SeckillServiceImpl implements SeckillService {
             // 执行 lua 脚本
             DefaultRedisScript redisScript = new DefaultRedisScript();
             // 指定 lua 脚本
-            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/seckill.lua")));
+            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/seckillV3.lua")));
             // 指定返回类型
             redisScript.setResultType(Long.class);
             List<Object> list = new ArrayList<>();

@@ -59,6 +59,7 @@
             #{seckillId, jdbcType=INTEGER,mode=IN},
             #{userPhone, jdbcType=VARCHAR,mode=IN},
             #{nowTime, jdbcType=TIMESTAMP,mode=IN},
+            #{orderNo, jdbcType=VARCHAR,mode=IN},
             #{result, jdbcType=INTEGER,mode=OUT}
             )
     </select>

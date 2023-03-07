@@ -24,6 +24,7 @@ public class SuccessKilled {
     private String email;
     private short status;
     private Date createTime;
+    private String orderNo;
 
     /**
      * 变通：一个商品对应多份订单

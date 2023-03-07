@@ -8,8 +8,11 @@ import com.example.seckill.dto.Result;
 import com.example.seckill.dto.SeckillExecution;
 import com.example.seckill.enums.SeckillStateEnum;
 import com.example.seckill.pojo.SuccessKilled;
+import com.example.seckill.utils.RandomUtil;
+import com.example.seckill.utils.SnowFlake;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
+import io.micrometer.common.util.StringUtils;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * @author: Richerlv
@@ -53,6 +57,8 @@ public class RabbitmqReceiverService {
 
     @Resource
     private RabbitTemplate rabbitTemplate;
+
+    private SnowFlake snowFlake = new SnowFlake(5, 2);
 
     /**
      * 秒杀成功异步发送邮件-接收消息
@@ -110,12 +116,17 @@ public class RabbitmqReceiverService {
             params.put("userPhone", userPhone);
             params.put("nowTime", nowTime);
             params.put("result", null);
+            //TODO：生成订单号
+            params.put("orderNo", String.valueOf(snowFlake.nextId()));
 
             seckillMapper.killByProcedure(params);
             int result = (int) params.get("result");
+            //如果秒杀成功，或重复秒杀都不插入（否则重复秒杀会删除redis中的订单信息）
             if (result == 1) {
                 SuccessKilled successKilled = successKilledMapper.getSuccessKilledById(seckillId, userPhone);
                 seckillExecution = new SeckillExecution(seckillId, SeckillStateEnum.SUCCESS, successKilled);
+            } else if(result == -1) {
+                seckillExecution = new SeckillExecution(seckillId, SeckillStateEnum.REPEAT_KILL);
             } else {
                 //MySQL操作失败，回增redis
                 String seckillKey = seckillId + "" + "stock:";
